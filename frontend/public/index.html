@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Personal Trainer Pro</title>
+    <link rel="stylesheet" href="css/styles.css" />
+  </head>
+  <body>
+    <header class="header">
+      <div class="logo">PT <span>PRO</span></div>
+      <button class="menu-toggle" id="menuToggle">☰</button>
+      <nav id="mainNav">
+        <a href="#sobre-mi">Sobre Mí</a>
+        <a href="#calendario">Calendario</a>
+        <a href="#rutina">Rutina</a>
+        <a href="#historial">Historial</a>
+        <a href="#foro">Foro</a>
+        <a href="#auth">Iniciar sesión / Registrarte</a>
+        <a href="#contacto">Contacto</a>
+      </nav>
+    </header>
+
+    <main>
+      <section id="sobre-mi" class="section about-grid">
+        <div>
+          <h1 id="aboutTitle">Entrenamiento inteligente y seguro</h1>
+          <p id="aboutDescription">Cargando información del entrenador...</p>
+          <small>Si sos admin, editá esta sección desde el panel.</small>
+        </div>
+        <img id="aboutImage" src="/images/trainer-placeholder.jpg" alt="Personal trainer" />
+      </section>
+
+      <section id="calendario" class="section card">
+        <h2>Calendario</h2>
+        <p>Los alumnos ven solo sus eventos. El admin gestiona todos.</p>
+        <ul id="calendarList"></ul>
+      </section>
+
+      <section id="rutina" class="section card">
+        <h2>Rutina</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Día</th>
+              <th>Ejercicio</th>
+              <th>Series</th>
+              <th>Repeticiones</th>
+              <th>Obs.</th>
+            </tr>
+          </thead>
+          <tbody id="routineBody"></tbody>
+        </table>
+      </section>
+
+      <section id="historial" class="section card">
+        <h2>Historial</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Actividad</th>
+              <th>Observaciones</th>
+              <th>Evolución</th>
+            </tr>
+          </thead>
+          <tbody id="historyBody"></tbody>
+        </table>
+      </section>
+
+      <section id="foro" class="section card">
+        <h2>Foro</h2>
+
+        <div class="forum-stack">
+          <div class="forum-block">
+            <h3>Avisos generales (solo admin publica)</h3>
+
+            <div id="adminTools" style="display: none;">
+              <form id="adminAnnouncementForm" enctype="multipart/form-data">
+                <input name="titulo" placeholder="Título del aviso" required />
+                <input name="subtitulo" placeholder="Subtítulo (opcional)" />
+                <textarea name="contenido" placeholder="Contenido del aviso" required></textarea>
+                <input name="link" placeholder="Link (opcional)" />
+                <input name="media_url" placeholder="URL imagen/video (opcional)" />
+                <input name="tipo_media" placeholder="Tipo media (imagen/video) opcional" />
+                <label for="media_file"><strong>Subir imagen o video (opcional)</strong></label>
+                <input id="media_file" name="media_file" type="file" accept="image/*,video/*" />
+                <div id="mediaPreview" class="media-preview"></div>
+                <button type="submit">Publicar aviso general</button>
+              </form>
+            </div>
+
+            <div id="announcements"></div>
+          </div>
+
+          <div class="forum-block">
+            <h3>Debates comunidad</h3>
+
+            <form id="topicForm">
+              <input name="titulo" placeholder="Título del debate" required />
+              <textarea name="contenido" placeholder="Escribí tu mensaje..." required></textarea>
+              <button type="submit">Publicar debate</button>
+            </form>
+
+            <div id="topics"></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="auth" class="section card">
+        <h2>Acceso</h2>
+
+        <div class="auth-grid">
+          <!-- ARRIBA: INICIAR SESIÓN -->
+          <form id="loginForm">
+            <h3>Iniciar sesión</h3>
+            <input name="identifier" placeholder="Usuario o Mail" required />
+            <input name="password" type="password" placeholder="Contraseña" required />
+            <button>Entrar</button>
+          </form>
+
+          <!-- ABAJO: REGISTRARTE -->
+          <form id="registerForm">
+            <h3>Registrarte</h3>
+            <input name="username" placeholder="Usuario" required />
+            <input name="nombre" placeholder="Nombre" required />
+            <input name="apellido" placeholder="Apellido" required />
+            <input name="email" type="email" placeholder="Mail" required />
+            <input name="telefono" placeholder="Teléfono" required />
+            <input name="password" type="password" placeholder="Contraseña" required />
+            <button>Crear cuenta</button>
+          </form>
+        </div>
+
+        <p id="authMessage"></p>
+
+        <div id="sessionActions" style="display: none; margin-top: 10px;">
+          <button id="logoutBtn" type="button">Cerrar sesión</button>
+        </div>
+      </section>
+
+      <section id="contacto" class="section card">
+        <h2>Contacto</h2>
+        <p>
+          <a href="https://instagram.com" target="_blank" rel="noreferrer">Instagram</a> |
+          <a href="https://wa.me/549000000000" target="_blank" rel="noreferrer">WhatsApp</a> |
+          <a href="mailto:coach@cambiar.com">coach@cambiar.com</a>
+        </p>
+      </section>
+    </main>
+
+    <footer>
+      <p>© 2026 Personal Trainer Pro</p>
+    </footer>
+
+    <script src="js/app.js"></script>
+  </body>
+</html>

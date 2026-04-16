@@ -30,6 +30,15 @@ async function upsertAbout(req, res) {
   return res.json(result.rows[0]);
 }
 
+async function getCalendarByUser(req, res) {
+  const userId = Number(req.params.userId);
+  const result = await db.query(
+    'SELECT * FROM calendar_events WHERE user_id = $1 ORDER BY fecha ASC, id ASC',
+    [userId]
+  );
+  return res.json(result.rows);
+}
+
 async function createCalendarEvent(req, res) {
   const { user_id, titulo, descripcion, fecha, tipo_evento } = req.body;
   const result = await db.query(
@@ -39,6 +48,73 @@ async function createCalendarEvent(req, res) {
     [Number(user_id), clean(titulo), clean(descripcion), fecha, clean(tipo_evento)]
   );
   return res.status(201).json(result.rows[0]);
+}
+
+async function upsertCalendarDay(req, res) {
+  const userId = Number(req.params.userId);
+  const fecha = req.params.fecha;
+
+  const titulo = clean(req.body.titulo);
+  const descripcion = clean(req.body.descripcion);
+  const tipoEvento = clean(req.body.tipo_evento);
+
+  if (!titulo) {
+    return res.status(400).json({ message: 'El título es obligatorio para guardar un día del calendario.' });
+  }
+
+  const existing = await db.query(
+    `SELECT id
+     FROM calendar_events
+     WHERE user_id = $1 AND fecha::date = $2::date
+     ORDER BY id ASC
+     LIMIT 1`,
+    [userId, fecha]
+  );
+
+  let result;
+  if (existing.rowCount > 0) {
+    result = await db.query(
+      `UPDATE calendar_events
+       SET titulo = $1,
+           descripcion = $2,
+           tipo_evento = $3,
+           creado_por_admin = true
+       WHERE id = $4
+       RETURNING *`,
+      [titulo, descripcion, tipoEvento, existing.rows[0].id]
+    );
+
+    await db.query(
+      `DELETE FROM calendar_events
+       WHERE user_id = $1
+         AND fecha::date = $2::date
+         AND id <> $3`,
+      [userId, fecha, existing.rows[0].id]
+    );
+  } else {
+    result = await db.query(
+      `INSERT INTO calendar_events (user_id, titulo, descripcion, fecha, tipo_evento, creado_por_admin)
+       VALUES ($1, $2, $3, $4, $5, true)
+       RETURNING *`,
+      [userId, titulo, descripcion, fecha, tipoEvento]
+    );
+  }
+
+  return res.json(result.rows[0]);
+}
+
+async function deleteCalendarDay(req, res) {
+  const userId = Number(req.params.userId);
+  const fecha = req.params.fecha;
+
+  const result = await db.query(
+    `DELETE FROM calendar_events
+     WHERE user_id = $1 AND fecha::date = $2::date
+     RETURNING id`,
+    [userId, fecha]
+  );
+
+  return res.json({ ok: true, deleted: result.rowCount });
 }
 
 async function createRoutine(req, res) {
@@ -140,7 +216,10 @@ async function deleteReply(req, res) {
 module.exports = {
   listUsers,
   upsertAbout,
+  getCalendarByUser,
   createCalendarEvent,
+  upsertCalendarDay,
+  deleteCalendarDay,
   createRoutine,
   createHistory,
   createAnnouncement,

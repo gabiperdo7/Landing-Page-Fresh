@@ -19,6 +19,13 @@ router.put(
   ctrl.upsertAbout
 );
 
+router.get(
+  '/calendar/:userId',
+  param('userId').isInt(),
+  handleValidation,
+  ctrl.getCalendarByUser
+);
+
 router.post(
   '/calendar',
   body('user_id').isInt(),
@@ -26,6 +33,25 @@ router.post(
   body('fecha').isISO8601(),
   handleValidation,
   ctrl.createCalendarEvent
+);
+
+router.put(
+  '/calendar/:userId/:fecha',
+  param('userId').isInt(),
+  param('fecha').isISO8601(),
+  body('titulo').optional({ nullable: true }),
+  body('descripcion').optional({ nullable: true }),
+  body('tipo_evento').optional({ nullable: true }),
+  handleValidation,
+  ctrl.upsertCalendarDay
+);
+
+router.delete(
+  '/calendar/:userId/:fecha',
+  param('userId').isInt(),
+  param('fecha').isISO8601(),
+  handleValidation,
+  ctrl.deleteCalendarDay
 );
 
 router.post(

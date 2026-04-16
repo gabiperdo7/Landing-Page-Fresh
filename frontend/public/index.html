@@ -7,34 +7,104 @@
     <link rel="stylesheet" href="css/styles.css" />
   </head>
   <body>
-    <header class="header">
+    <header class="header glass">
       <div class="logo">PT <span>PRO</span></div>
-      <button class="menu-toggle" id="menuToggle">☰</button>
-      <nav id="mainNav">
-        <a href="#sobre-mi">Sobre Mí</a>
-        <a href="#calendario">Calendario</a>
-        <a href="#rutina">Rutina</a>
-        <a href="#historial">Historial</a>
-        <a href="#foro">Foro</a>
-        <a href="#auth">Iniciar sesión / Registrarte</a>
-        <a href="#contacto">Contacto</a>
+      <button class="menu-toggle" id="menuToggle" aria-label="Abrir menú">☰</button>
+      <nav id="mainNav" class="main-nav">
+        <a class="nav-btn nav-btn-primary" href="#sobre-mi">Sobre Mí</a>
+        <a class="nav-btn nav-btn-accent" href="#auth">Acceso</a>
+        <a class="nav-btn" href="#calendario">Calendario</a>
+        <a class="nav-btn" href="#rutina">Rutina</a>
+        <a class="nav-btn" href="#historial">Historial</a>
+        <a class="nav-btn" href="#foro">Foro</a>
+        <a class="nav-btn" href="#contacto">Contacto</a>
       </nav>
     </header>
 
     <main>
-      <section id="sobre-mi" class="section about-grid">
+      <section id="sobre-mi" class="section about-grid card glass">
         <div>
           <h1 id="aboutTitle">Entrenamiento inteligente y seguro</h1>
           <p id="aboutDescription">Cargando información del entrenador...</p>
           <small>Si sos admin, editá esta sección desde el panel.</small>
         </div>
-        <img id="aboutImage" src="/images/trainer-placeholder.jpg" alt="Personal trainer" />
+        <img id="aboutImage" src="images/trainer-placeholder.jpg" alt="Personal trainer" />
+      </section>
+
+      <section id="auth" class="section card glass">
+        <h2>Acceso</h2>
+
+        <div class="auth-grid">
+          <form id="loginForm" class="glass-soft">
+            <h3>Iniciar sesión</h3>
+            <input name="identifier" placeholder="Usuario o Mail" required />
+            <input name="password" type="password" placeholder="Contraseña" required />
+            <button>Entrar</button>
+          </form>
+
+          <form id="registerForm" class="glass-soft">
+            <h3>Registrarte</h3>
+            <input name="username" placeholder="Usuario" required />
+            <input name="nombre" placeholder="Nombre" required />
+            <input name="apellido" placeholder="Apellido" required />
+            <input name="email" type="email" placeholder="Mail" required />
+            <input name="telefono" placeholder="Teléfono" required />
+            <input name="password" type="password" placeholder="Contraseña" required />
+            <button>Crear cuenta</button>
+          </form>
+        </div>
+
+        <p id="authMessage"></p>
+
+        <div id="sessionActions" style="display: none; margin-top: 10px;">
+          <button id="logoutBtn" type="button">Cerrar sesión</button>
+        </div>
       </section>
 
       <section id="calendario" class="section card">
         <h2>Calendario</h2>
-        <p>Los alumnos ven solo sus eventos. El admin gestiona todos.</p>
-        <ul id="calendarList"></ul>
+        <p>
+          Vista mensual por usuario. Cada día tiene su cuadrado y, si estás como admin,
+          podés elegir el alumno y editar su calendario.
+        </p>
+
+        <div class="calendar-toolbar">
+          <button id="prevMonthBtn" type="button">◀ Mes anterior</button>
+          <h3 id="calendarMonthLabel">Mes / Año</h3>
+          <button id="nextMonthBtn" type="button">Mes siguiente ▶</button>
+        </div>
+
+        <div class="calendar-grid calendar-weekdays" aria-hidden="true">
+          <div>Dom</div>
+          <div>Lun</div>
+          <div>Mar</div>
+          <div>Mié</div>
+          <div>Jue</div>
+          <div>Vie</div>
+          <div>Sáb</div>
+        </div>
+
+        <div id="calendarGrid" class="calendar-grid"></div>
+
+        <div id="calendarDayInfo" class="calendar-day-info">Seleccioná un día para ver el detalle.</div>
+
+        <div id="adminCalendarPanel" class="admin-calendar-panel" style="display: none;">
+          <h3>Editor de calendario (solo admin)</h3>
+
+          <label for="calendarUserSelect">Alumno a editar</label>
+          <select id="calendarUserSelect"></select>
+
+          <form id="adminCalendarForm" class="admin-calendar-form">
+            <input id="calendarDateInput" name="fecha" type="date" required />
+            <input name="titulo" placeholder="Título del evento (obligatorio)" required />
+            <input name="tipo_evento" placeholder="Tipo de evento (opcional)" />
+            <textarea name="descripcion" placeholder="Descripción (opcional)"></textarea>
+            <div class="calendar-form-actions">
+              <button type="submit">Guardar día</button>
+              <button id="deleteCalendarDayBtn" type="button" class="danger-btn">Eliminar día</button>
+            </div>
+          </form>
+        </div>
       </section>
 
       <section id="rutina" class="section card">
@@ -107,38 +177,6 @@
         </div>
       </section>
 
-      <section id="auth" class="section card">
-        <h2>Acceso</h2>
-
-        <div class="auth-grid">
-          <!-- ARRIBA: INICIAR SESIÓN -->
-          <form id="loginForm">
-            <h3>Iniciar sesión</h3>
-            <input name="identifier" placeholder="Usuario o Mail" required />
-            <input name="password" type="password" placeholder="Contraseña" required />
-            <button>Entrar</button>
-          </form>
-
-          <!-- ABAJO: REGISTRARTE -->
-          <form id="registerForm">
-            <h3>Registrarte</h3>
-            <input name="username" placeholder="Usuario" required />
-            <input name="nombre" placeholder="Nombre" required />
-            <input name="apellido" placeholder="Apellido" required />
-            <input name="email" type="email" placeholder="Mail" required />
-            <input name="telefono" placeholder="Teléfono" required />
-            <input name="password" type="password" placeholder="Contraseña" required />
-            <button>Crear cuenta</button>
-          </form>
-        </div>
-
-        <p id="authMessage"></p>
-
-        <div id="sessionActions" style="display: none; margin-top: 10px;">
-          <button id="logoutBtn" type="button">Cerrar sesión</button>
-        </div>
-      </section>
-
       <section id="contacto" class="section card">
         <h2>Contacto</h2>
         <p>
@@ -149,7 +187,7 @@
       </section>
     </main>
 
-    <footer>
+    <footer class="footer-modern">
       <p>© 2026 Personal Trainer Pro</p>
     </footer>
 

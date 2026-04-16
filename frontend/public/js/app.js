@@ -3,6 +3,15 @@ const API_BASE = 'http://localhost:4000/api';
 let csrfToken = '';
 let currentUser = null;
 
+// Estado del calendario visual.
+const calendarState = {
+  currentMonthDate: new Date(),
+  selectedDateKey: null,
+  selectedUserId: null,
+  eventsByDate: new Map(),
+  adminUsers: []
+};
+
 const $ = (selector, root = document) => root.querySelector(selector);
 
 async function getCsrf() {
@@ -49,6 +58,18 @@ function formatDate(value) {
   return Number.isNaN(d.getTime()) ? value : d.toLocaleString('es-AR');
 }
 
+function toDateKey(dateObj) {
+  const yyyy = dateObj.getFullYear();
+  const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
+  const dd = String(dateObj.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+function setAuthMessage(text) {
+  const msg = $('#authMessage');
+  if (msg) msg.textContent = text;
+}
+
 function getYouTubeEmbed(url = '') {
   try {
     const u = new URL(url);
@@ -93,7 +114,11 @@ function setupMenu() {
   const menuBtn = $('#menuToggle');
   const nav = $('#mainNav');
   if (!menuBtn || !nav) return;
+
   menuBtn.addEventListener('click', () => nav.classList.toggle('open'));
+  nav.addEventListener('click', (e) => {
+    if (e.target.closest('a')) nav.classList.remove('open');
+  });
 }
 
 function ensureLogoutButton() {
@@ -212,59 +237,6 @@ async function renderTopics(topics = []) {
   wrap.innerHTML = html.join('');
 }
 
-async function loadUserData() {
-  try {
-    const [calendar, routine, history, forum] = await Promise.all([
-      api('/user/calendar', { method: 'GET' }),
-      api('/user/routine', { method: 'GET' }),
-      api('/user/history', { method: 'GET' }),
-      api('/user/forum', { method: 'GET' })
-    ]);
-
-    if ($('#calendarList')) {
-      $('#calendarList').innerHTML =
-        calendar.map((e) => `<li>${escapeHtml(e.fecha)}: ${escapeHtml(e.titulo)}</li>`).join('') || '<li>Sin eventos</li>';
-    }
-
-    renderRows(
-      $('#routineBody'),
-      routine,
-      (r) => `<tr><td>${escapeHtml(r.dia)}</td><td>${escapeHtml(r.ejercicio)}</td><td>${escapeHtml(r.series || '')}</td><td>${escapeHtml(r.repeticiones || '')}</td><td>${escapeHtml(r.observaciones || '')}</td></tr>`,
-      5
-    );
-
-    renderRows(
-      $('#historyBody'),
-      history,
-      (h) => `<tr><td>${escapeHtml(h.fecha)}</td><td>${escapeHtml(h.actividad)}</td><td>${escapeHtml(h.observaciones || '')}</td><td>${escapeHtml(h.evolucion || '')}</td></tr>`,
-      4
-    );
-
-    renderAnnouncements(forum.announcements || []);
-    await renderTopics(forum.topics || []);
-  } catch (_) {
-    // sin sesión
-  }
-}
-
-async function refreshSession() {
-  const authMessage = $('#authMessage');
-  const sessionActions = $('#sessionActions');
-  const logoutBtn = ensureLogoutButton();
-
-  try {
-    currentUser = await api('/user/me', { method: 'GET' });
-    if (authMessage) authMessage.textContent = `Sesión activa: ${currentUser.nombre} (${currentUser.rol})`;
-    if (sessionActions) sessionActions.style.display = 'block';
-    if (logoutBtn) logoutBtn.style.display = 'block';
-  } catch (_) {
-    currentUser = null;
-    if (authMessage) authMessage.textContent = '';
-    if (sessionActions) sessionActions.style.display = 'none';
-    if (logoutBtn) logoutBtn.style.display = 'none';
-  }
-}
-
 function setupAnnouncementPreview() {
   const form = $('#adminAnnouncementForm');
   const mediaInput = form ? form.querySelector('[name="media_url"]') : null;
@@ -293,6 +265,281 @@ function setupAnnouncementPreview() {
   render();
 }
 
+async function refreshSession() {
+  const authMessage = $('#authMessage');
+  const sessionActions = $('#sessionActions');
+  const logoutBtn = ensureLogoutButton();
+
+  try {
+    currentUser = await api('/user/me', { method: 'GET' });
+    if (authMessage) authMessage.textContent = `Sesión activa: ${currentUser.nombre} (${currentUser.rol})`;
+    if (sessionActions) sessionActions.style.display = 'block';
+    if (logoutBtn) logoutBtn.style.display = 'block';
+  } catch (_) {
+    currentUser = null;
+    if (authMessage) authMessage.textContent = '';
+    if (sessionActions) sessionActions.style.display = 'none';
+    if (logoutBtn) logoutBtn.style.display = 'none';
+  }
+}
+
+function renderCalendar() {
+  const monthLabel = $('#calendarMonthLabel');
+  const grid = $('#calendarGrid');
+  if (!monthLabel || !grid) return;
+
+  const date = new Date(calendarState.currentMonthDate.getFullYear(), calendarState.currentMonthDate.getMonth(), 1);
+  const year = date.getFullYear();
+  const month = date.getMonth();
+
+  monthLabel.textContent = date.toLocaleDateString('es-AR', { month: 'long', year: 'numeric' });
+
+  const firstDayWeek = date.getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  const cells = [];
+
+  for (let i = 0; i < firstDayWeek; i += 1) {
+    cells.push('<div class="calendar-day disabled"></div>');
+  }
+
+  for (let day = 1; day <= daysInMonth; day += 1) {
+    const dayDate = new Date(year, month, day);
+    const key = toDateKey(dayDate);
+    const eventData = calendarState.eventsByDate.get(key);
+    const hasEvent = Boolean(eventData);
+    const selected = calendarState.selectedDateKey === key;
+
+    cells.push(`
+      <button type="button" class="calendar-day ${hasEvent ? 'has-event' : ''} ${selected ? 'selected' : ''}" data-date="${key}">
+        <span class="calendar-day-number">${day}</span>
+        <span class="calendar-day-title">${hasEvent ? escapeHtml(eventData.titulo || '') : ''}</span>
+      </button>
+    `);
+  }
+
+  grid.innerHTML = cells.join('');
+
+  grid.querySelectorAll('.calendar-day[data-date]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      calendarState.selectedDateKey = btn.dataset.date;
+      fillCalendarDayInfo();
+      fillAdminCalendarForm();
+      renderCalendar();
+    });
+  });
+
+  fillCalendarDayInfo();
+}
+
+function fillCalendarDayInfo() {
+  const info = $('#calendarDayInfo');
+  if (!info) return;
+
+  if (!calendarState.selectedDateKey) {
+    info.textContent = 'Seleccioná un día para ver el detalle.';
+    return;
+  }
+
+  const eventData = calendarState.eventsByDate.get(calendarState.selectedDateKey);
+  if (!eventData) {
+    info.textContent = `${calendarState.selectedDateKey}: sin evento cargado.`;
+    return;
+  }
+
+  info.textContent = `${calendarState.selectedDateKey}\nTítulo: ${eventData.titulo || '-'}\nTipo: ${eventData.tipo_evento || '-'}\nDescripción: ${eventData.descripcion || '-'}`;
+}
+
+function fillAdminCalendarForm() {
+  if (!canModerate()) return;
+
+  const form = $('#adminCalendarForm');
+  const dateInput = $('#calendarDateInput');
+  if (!form || !dateInput) return;
+
+  const selectedDate = calendarState.selectedDateKey || toDateKey(new Date(calendarState.currentMonthDate));
+  dateInput.value = selectedDate;
+
+  const current = calendarState.eventsByDate.get(selectedDate);
+  form.elements.titulo.value = current?.titulo || '';
+  form.elements.descripcion.value = current?.descripcion || '';
+  form.elements.tipo_evento.value = current?.tipo_evento || '';
+}
+
+function mapEventsByDate(events = []) {
+  const map = new Map();
+  events.forEach((ev) => {
+    const key = String(ev.fecha).slice(0, 10);
+    if (!map.has(key)) {
+      map.set(key, ev);
+    }
+  });
+  return map;
+}
+
+async function loadCalendarForCurrentContext() {
+  let events = [];
+
+  if (canModerate()) {
+    if (!calendarState.selectedUserId) return;
+    events = await api(`/admin/calendar/${calendarState.selectedUserId}`, { method: 'GET' });
+  } else if (currentUser) {
+    events = await api('/user/calendar', { method: 'GET' });
+  }
+
+  calendarState.eventsByDate = mapEventsByDate(events);
+
+  const visibleMonth = new Date(calendarState.currentMonthDate);
+  const monthStart = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth(), 1);
+  const key = toDateKey(monthStart);
+
+  if (!calendarState.selectedDateKey || !calendarState.selectedDateKey.startsWith(key.slice(0, 7))) {
+    calendarState.selectedDateKey = toDateKey(monthStart);
+  }
+
+  renderCalendar();
+  fillAdminCalendarForm();
+}
+
+async function loadAdminCalendarUsers() {
+  if (!canModerate()) return;
+
+  const panel = $('#adminCalendarPanel');
+  const select = $('#calendarUserSelect');
+
+  if (!panel || !select) return;
+
+  panel.style.display = 'block';
+
+  const users = await api('/admin/users', { method: 'GET' });
+  calendarState.adminUsers = users;
+
+  if (!users.length) {
+    select.innerHTML = '<option value="">No hay alumnos</option>';
+    calendarState.selectedUserId = null;
+    return;
+  }
+
+  select.innerHTML = users
+    .map((u) => `<option value="${u.id}">${escapeHtml(u.nombre)} ${escapeHtml(u.apellido)} (${escapeHtml(u.username)})</option>`)
+    .join('');
+
+  if (!calendarState.selectedUserId) {
+    calendarState.selectedUserId = String(users[0].id);
+  }
+
+  select.value = String(calendarState.selectedUserId);
+}
+
+function setupCalendarUIEvents() {
+  const prevBtn = $('#prevMonthBtn');
+  const nextBtn = $('#nextMonthBtn');
+
+  if (prevBtn) {
+    prevBtn.addEventListener('click', async () => {
+      calendarState.currentMonthDate = new Date(
+        calendarState.currentMonthDate.getFullYear(),
+        calendarState.currentMonthDate.getMonth() - 1,
+        1
+      );
+      await loadCalendarForCurrentContext();
+    });
+  }
+
+  if (nextBtn) {
+    nextBtn.addEventListener('click', async () => {
+      calendarState.currentMonthDate = new Date(
+        calendarState.currentMonthDate.getFullYear(),
+        calendarState.currentMonthDate.getMonth() + 1,
+        1
+      );
+      await loadCalendarForCurrentContext();
+    });
+  }
+
+  const userSelect = $('#calendarUserSelect');
+  if (userSelect) {
+    userSelect.addEventListener('change', async () => {
+      calendarState.selectedUserId = userSelect.value;
+      await loadCalendarForCurrentContext();
+    });
+  }
+
+  const form = $('#adminCalendarForm');
+  if (form) {
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      if (!canModerate() || !calendarState.selectedUserId) return;
+
+      const fecha = form.elements.fecha.value;
+      const payload = {
+        titulo: form.elements.titulo.value,
+        descripcion: form.elements.descripcion.value,
+        tipo_evento: form.elements.tipo_evento.value
+      };
+
+      try {
+        await api(`/admin/calendar/${calendarState.selectedUserId}/${fecha}`, {
+          method: 'PUT',
+          body: JSON.stringify(payload)
+        });
+        calendarState.selectedDateKey = fecha;
+        await loadCalendarForCurrentContext();
+        setAuthMessage('Calendario guardado correctamente.');
+      } catch (error) {
+        setAuthMessage(error.message);
+      }
+    });
+  }
+
+  const deleteBtn = $('#deleteCalendarDayBtn');
+  if (deleteBtn) {
+    deleteBtn.addEventListener('click', async () => {
+      if (!canModerate() || !calendarState.selectedUserId) return;
+      const dateInput = $('#calendarDateInput');
+      const fecha = dateInput?.value;
+      if (!fecha) return;
+
+      try {
+        await api(`/admin/calendar/${calendarState.selectedUserId}/${fecha}`, { method: 'DELETE' });
+        await loadCalendarForCurrentContext();
+        setAuthMessage('Día de calendario eliminado.');
+      } catch (error) {
+        setAuthMessage(error.message);
+      }
+    });
+  }
+}
+
+async function loadUserData() {
+  try {
+    const [routine, history, forum] = await Promise.all([
+      api('/user/routine', { method: 'GET' }),
+      api('/user/history', { method: 'GET' }),
+      api('/user/forum', { method: 'GET' })
+    ]);
+
+    renderRows(
+      $('#routineBody'),
+      routine,
+      (r) => `<tr><td>${escapeHtml(r.dia)}</td><td>${escapeHtml(r.ejercicio)}</td><td>${escapeHtml(r.series || '')}</td><td>${escapeHtml(r.repeticiones || '')}</td><td>${escapeHtml(r.observaciones || '')}</td></tr>`,
+      5
+    );
+
+    renderRows(
+      $('#historyBody'),
+      history,
+      (h) => `<tr><td>${escapeHtml(h.fecha)}</td><td>${escapeHtml(h.actividad)}</td><td>${escapeHtml(h.observaciones || '')}</td><td>${escapeHtml(h.evolucion || '')}</td></tr>`,
+      4
+    );
+
+    renderAnnouncements(forum.announcements || []);
+    await renderTopics(forum.topics || []);
+  } catch (_) {
+    // Sin sesión no renderizamos privados.
+  }
+}
+
 function setupAuthForms() {
   if ($('#registerForm')) {
     $('#registerForm').addEventListener('submit', async (event) => {
@@ -300,10 +547,10 @@ function setupAuthForms() {
       const data = Object.fromEntries(new FormData(event.target).entries());
       try {
         await api('/auth/register', { method: 'POST', body: JSON.stringify(data) });
-        if ($('#authMessage')) $('#authMessage').textContent = 'Registro exitoso. Ahora iniciá sesión.';
+        setAuthMessage('Registro exitoso. Ahora iniciá sesión.');
         event.target.reset();
       } catch (error) {
-        if ($('#authMessage')) $('#authMessage').textContent = error.message;
+        setAuthMessage(error.message);
       }
     });
   }
@@ -316,7 +563,7 @@ function setupAuthForms() {
         await api('/auth/login', { method: 'POST', body: JSON.stringify(data) });
         await refreshAll();
       } catch (error) {
-        if ($('#authMessage')) $('#authMessage').textContent = error.message;
+        setAuthMessage(error.message);
       }
     });
   }
@@ -326,7 +573,9 @@ function setupAuthForms() {
     logoutBtn.addEventListener('click', async () => {
       try {
         await api('/auth/logout', { method: 'POST' });
-      } catch (_) {}
+      } catch (_) {
+        // noop
+      }
       await refreshAll();
     });
   }
@@ -428,8 +677,21 @@ function setupForumDelegation() {
 
 async function refreshAll() {
   await refreshSession();
+
+  const adminTools = $('#adminTools');
+  if (adminTools) adminTools.style.display = canModerate() ? 'block' : 'none';
+
+  const adminCalendarPanel = $('#adminCalendarPanel');
+  if (adminCalendarPanel) adminCalendarPanel.style.display = canModerate() ? 'block' : 'none';
+
+  if (canModerate()) {
+    await loadAdminCalendarUsers();
+  } else {
+    calendarState.selectedUserId = currentUser ? String(currentUser.id) : null;
+  }
+
+  await loadCalendarForCurrentContext();
   await loadUserData();
-  if ($('#adminTools')) $('#adminTools').style.display = canModerate() ? 'block' : 'none';
 }
 
 (async function init() {
@@ -440,6 +702,8 @@ async function refreshAll() {
   setupAnnouncementForm();
   setupForumDelegation();
   setupAnnouncementPreview();
+  setupCalendarUIEvents();
+
   await loadPublicData();
   await refreshAll();
 })();
